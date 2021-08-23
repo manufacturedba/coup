@@ -1,7 +1,8 @@
 .character {
+  margin-right: 5px;
   border: 1px solid black;
-  height: 100px;
-  width: 100px;
+  height: 200px;
+  width: 150px;
 }
 
 .character__name {

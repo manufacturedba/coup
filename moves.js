@@ -15,11 +15,9 @@ const income = {
   cost: 0,
   gain: 1,
   performedBy: null,
-  blockedBy: null,
+  blockedBy: [],
   canChallenge: false,
-  task: function (G /* ctx */) {
-    G.currencyPool = G.currencyPool - this.gain;
-  },
+  task: null,
 };
 
 const foreignAid = {
@@ -46,10 +44,13 @@ const steal = {
   name: "Steal",
   action: STEAL,
   cost: 0,
-  gain: 2, // technically it takes from another so is this correct modeling?
+  gain: 0,
   performedBy: [CAPTAIN],
   blockedBy: [CAPTAIN, AMBASSADOR],
   canChallenge: true,
+  task: function (G, ctx, move) {
+    // Take from the targeted character
+  },
 };
 
 const assassinate = {
@@ -70,16 +71,17 @@ export const moves = [income, foreignAid, steal, assassinate];
 
   action: Action,
 
-  cost: Number, // Pay in
+  cost: Number, // Pay in to treasury (cannot be regained on block/challenge)
 
-  gain: Number, // Pay out
+  gain: Number, // Pay out from treasury (stopped by block/challenge)
 
   performedBy: optional array[Characters], // Who can perform | null is all
 
-  blockedBy: optional array[Characters], // Who can block | null is no one
+  blockedBy: array[Characters], // Who can block | empty is no one
 
   canChallenge: Boolean
 
-  task: Function
+  task: optional Function // If null, mechanics of function can be handled by config
+
 }
 */

@@ -1,0 +1,11 @@
+.board {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.board__hand {
+  display: flex;
+}
+
+.board__action_bar {
+  display: flex;
+}
