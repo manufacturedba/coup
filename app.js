@@ -32,6 +32,7 @@ class CoupClient {
     this.rootElement.innerHTML = `
       <div class="board">
         <h1 class="board__current_player" id="current_player"></h1>
+        <h2 class="board__treasury" id="treasury"></h2>
         <div class="board__hand" id="hand"></div>
         <div class="board__coins" id="coins"></div>
         <div class="board__action_bar" id="action_bar"></div>
@@ -67,21 +68,23 @@ class CoupClient {
   /**
    * Create all the actions available to the player including attaching listeners
    *
-   * @param {Number} currentPlayer
+   * @param {Number} currentPlayerID
    */
-  updateActionBar(currentPlayer) {
+  updateActionBar(player, currentPlayerID) {
     const actionBar = document.getElementById("action_bar");
+
     let actions = "";
     moves.forEach((move) => {
-      const moveElement = document.createElement("div");
-      moveElement.innerHTML = `
-        <button class="move" data-action="${move.action}">${move.name}</button>
-      `;
+      const moveElement = document.createElement("button");
+      moveElement.textContent = move.name;
+      moveElement.dataset.action = move.action;
+      moveElement.classList.add("move");
+      moveElement.disabled =
+        this.playerID !== currentPlayerID || move.cost > player.coins;
       actions += moveElement.outerHTML;
     });
     actionBar.innerHTML = actions;
     actionBar.querySelectorAll(".move").forEach((button) => {
-      button.disabled = this.playerID !== currentPlayer;
       button.onclick = (event) => {
         const actionName = event.target.dataset.action;
         const action = this.client.moves[actionName];
@@ -98,13 +101,24 @@ class CoupClient {
    * Displays the current player on board
    * TODO: Translate this to actual player's name
    *
-   * @param {Number} currentPlayer
+   * @param {Number} currentPlayerID
    */
-  updateCurrentPlayer(currentPlayer) {
+  updateCurrentPlayer(currentPlayerID) {
     document.getElementById(
       "current_player"
-    ).textContent = `Current player: ${currentPlayer}`;
+    ).textContent = `Current player: ${currentPlayerID}`;
   }
+
+  /**
+   * Update treasury with remaining coins
+   *
+   * @param {Number} amount
+   */
+  updateTreasury(amount) {
+    const treasury = document.getElementById("treasury");
+    treasury.textContent = `Remaining coins in treasury: ${amount}`;
+  }
+
   /**
    * This method is called for almost any event meaning it knows
    * about current players
@@ -113,7 +127,7 @@ class CoupClient {
   update(state) {
     if (state) {
       const player = state.G.players[this.playerID];
-      const currentPlayer = state.ctx.currentPlayer;
+      const currentPlayerID = state.ctx.currentPlayer;
 
       if (!this.hasCreatedPlayerInterface) {
         player.influence.forEach((character) => {
@@ -127,8 +141,9 @@ class CoupClient {
       }
 
       this.updateCoins(player);
-      this.updateActionBar(currentPlayer);
-      this.updateCurrentPlayer(currentPlayer);
+      this.updateActionBar(player, currentPlayerID);
+      this.updateCurrentPlayer(currentPlayerID);
+      this.updateTreasury(state.G.treasury);
     }
   }
 }

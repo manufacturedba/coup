@@ -15,3 +15,5 @@
 // Income appears to be executing but some issues with interacting with game context. We also need to inform game that clicking this task will end the turn - 8:39pm
 // Oooo, buttons should also be disabled based on the action's cost. Will fix that soon - 9:04pm
 // HOLY SHIT IT WORKS - 9:14pm
+// Let's focus real quick on button disable state before moving on - 9:17pm
+// Assassinate is blocked so obviously it's functioning. Let's focus on hooking up foreign aid so we can complete the timed flow - 9:28pm
