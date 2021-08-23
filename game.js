@@ -1,4 +1,3 @@
-import { PlayerView } from "boardgame.io/core";
 import { moves } from "./moves";
 import { DUKE, CAPTAIN, ASSASSIN, CONTESSA, AMBASSADOR } from "./characters";
 import {
@@ -30,18 +29,38 @@ moves.forEach((move) => {
  *
  * Do I need G and ctx here? hmmm
  */
-function raiseAction(G, ctx, move) {
-  G.raisedAction = {
-    by: ctx.currentPlayer,
-    move,
-  };
+function raiseAction(G, ctx, endCallback) {
+  G.endCallback = endCallback;
+  ctx.events.setActivePlayers({ others: "counter", moveLimit: 1 });
+}
 
-  if (challenged) {
-    promptCard();
+function performMove(G, ctx, move) {
+  // Are there cases where we don't take the money upfront?
+  if (move.cost) {
+    giveToTreasury(G, ctx, move.cost);
   }
 
-  if (blocked) {
-    promptBlockFlow();
+  if (move.canChallenge || move.blockedBy.length) {
+    raiseAction(G, ctx, () => {
+      G.endCallback = null;
+      // Cannot be stopped
+      if (move.gain) {
+        takefromTreasury(G, ctx, move.gain);
+      }
+
+      if (move.task) {
+        return move.task(G, ctx, move); // Am I bad at javascript?
+      }
+    });
+  } else {
+    // Cannot be stopped
+    if (move.gain) {
+      takefromTreasury(G, ctx, move.gain);
+    }
+
+    if (move.task) {
+      return move.task(G, ctx, move); // Am I bad at javascript?
+    }
   }
 }
 
@@ -52,33 +71,80 @@ function raiseAction(G, ctx, move) {
  */
 function wrapMove(move) {
   return function (G, ctx) {
-    // Are there cases where we don't take the money upfront?
-    if (move.cost) {
-      giveToTreasury(G, ctx, move.cost);
-    }
-
-    if (move.canChallenge || move.blockedBy.length) {
-      raiseAction(G, ctx, move, () => {
-        // Cannot be stopped
-        if (move.gain) {
-          takefromTreasury(G, ctx, move.gain);
-        }
-
-        if (move.task) {
-          return move.task(G, ctx, move); // Am I bad at javascript?
-        }
+    G.move = null;
+    if (move.performedBy) {
+      G.move = { ...move };
+      return ctx.events.setActivePlayers({
+        currentPlayer: "choose",
+        moveLimit: 1,
       });
     } else {
-      // Cannot be stopped
-      if (move.gain) {
-        takefromTreasury(G, ctx, move.gain);
-      }
-
-      if (move.task) {
-        return move.task(G, ctx, move); // Am I bad at javascript?
-      }
+      return performMove(G, ctx, move);
     }
   };
+}
+
+// :P
+function makeInfluencer(character) {
+  return {
+    type: character,
+    revealed: false,
+  };
+}
+
+/**
+ * Current player is marked as blocked by another player
+ */
+function block() {
+  ctx.events.setActivePlayers({ currentPlayer: "counter", moveLimit: 1 });
+}
+
+/**
+ * Player is marked as challenged by another
+ */
+function challenge() {
+  ctx.events.setActivePlayers({ currentPlayer: "counter", moveLimit: 1 });
+}
+
+/**
+ * Successful demonstration of influence so replace card
+ */
+function replace(G, ctx, index) {
+  // We need to hide the replacement cards from others
+  const player = G.players[ctx.currentPlayer];
+
+  // I think this returns the card back
+  G.secrets.courtDeck.push(player.splice(index, 1).type);
+
+  // shuffleDeck();
+
+  player.splice(index, 0, makeInfluencer(G.secrets.courtDeck.pop()));
+}
+
+/**
+ * Discards the influence from
+ * @param {*} index
+ */
+function reveal(index) {
+  const player = G.players[ctx.currentPlayer];
+  player.influence[index].revealed = true;
+}
+
+function chooseCharacterForAction(type) {
+  G.move.type = type;
+}
+
+/**
+ * Player is completely dead if they have no unturned characters
+ *
+ * @returns {Boolean}
+ */
+function playerIsDead(G, currentPlayer) {
+  return (
+    G.players[currentPlayer].influence.filter(
+      (character) => character.revealed === true
+    ).length === NUM_STARTING_CARDS
+  );
 }
 
 // Focus on basic flow
@@ -103,7 +169,10 @@ export const Coup = {
           treasury -= NUM_STARTING_COINS;
 
           return {
-            influence: [characterPool.pop(), characterPool.pop()], // TODO: base on rules constants
+            influence: [
+              makeInfluencer(characterPool.pop()),
+              makeInfluencer(characterPool.pop()),
+            ], // TODO: base on rules constants
             coins: NUM_STARTING_COINS,
           };
         })
@@ -121,9 +190,83 @@ export const Coup = {
 
   moves: moveList, // Needs dynamic restricting due to currency 10+ rule
 
-  turn: { moveLimit: 1 },
+  turn: {
+    endIf: (G) => playerIsDead(G, ctx.currentPlayer),
 
-  playerView: PlayerView.STRIP_SECRETS,
+    stages: {
+      choose: {
+        moves: {
+          chooseCharacterForAction,
+        },
+      },
+      counter: {
+        moves: {
+          block,
+          challenge,
+        },
+      },
+      challenged: {
+        moves: {
+          reveal,
+          replace,
+        },
+      },
+    },
+  },
+
+  /**
+   * Blocks secrets and some information about players
+   */
+  playerView: (G, ctx, playerID) => {
+    const players = Object.keys(G.players).reduce((accumulator, value) => {
+      const player = G.players[value];
+      if (value !== playerID) {
+        accumulator[value] = {
+          // TODO: name: player.name,
+          influence: player.influence.map((influence) => {
+            if (influence.revealed) {
+              return influence;
+            } else {
+              return null;
+            }
+          }),
+        };
+      } else {
+        accumulator[value] = player;
+      }
+
+      return accumulator;
+    }, {});
+
+    return {
+      ...G,
+      players,
+      secrets: null, // Court deck and shit
+    };
+  },
+
+  endIf: (G, ctx) => {
+    const gameover = Object.keys(G.players).reduce(
+      accumulator,
+      (value) => {
+        // Only check other players
+        // Once accumulator flips, don't bother setting again
+        if (value !== ctx.currentPlayer && accumulator) {
+          accumulator = playerIsDead(G, value);
+        }
+
+        return accumulator;
+      },
+      true
+    );
+
+    if (gameover) {
+      return { winner: ctx.currentPlayer };
+    }
+  },
+
+  minPlayers: 2,
+  maxPlayers: 4,
 };
 
 /**

@@ -17,3 +17,11 @@
 // HOLY SHIT IT WORKS - 9:14pm
 // Let's focus real quick on button disable state before moving on - 9:17pm
 // Assassinate is blocked so obviously it's functioning. Let's focus on hooking up foreign aid so we can complete the timed flow - 9:28pm
+// Real quick, let's change "Current player" to "It's your turn" when ID matches
+// Hmm, how the shit do we unblock the current player once they've been challenged? I think we'll need to store their desired action off to the side... - 9:47pm
+// So move limit is also a problem.. Can't respond to challenges/blocks while it exists - 9:57pm
+// Do you have to show the card you were challenged on if you have it? - 10:01pm
+// "If they can't, or do not wish to, prove it, they lose the challenge. If they can, the challenger loses." - 10:01.5pm
+// Turns out we don't want all information hidden. We need to know what bozo discarded - 10:05pm
+// Okay, now you know who has died so far, back to the challenge/block flow - 10:24pm
+// KK, seems like setting a timer for a block/challenge works fine. Let's actually do the "choose action as BLANK flow" - 11:06pm
