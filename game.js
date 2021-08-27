@@ -4,6 +4,7 @@ import {
   NUM_CHARACTER_COUNT,
   NUM_STARTING_TREASURY,
   NUM_STARTING_COINS,
+  NUM_STARTING_CARDS,
 } from "./rules";
 import { giveToTreasury, takefromTreasury } from "./utils";
 
@@ -30,7 +31,6 @@ moves.forEach((move) => {
  * Do I need G and ctx here? hmmm
  */
 function raiseAction(G, ctx, endCallback) {
-  G.endCallback = endCallback;
   ctx.events.setActivePlayers({ others: "counter", moveLimit: 1 });
 }
 
@@ -42,7 +42,6 @@ function performMove(G, ctx, move) {
 
   if (move.canChallenge || move.blockedBy.length) {
     raiseAction(G, ctx, () => {
-      G.endCallback = null;
       // Cannot be stopped
       if (move.gain) {
         takefromTreasury(G, ctx, move.gain);
@@ -61,6 +60,8 @@ function performMove(G, ctx, move) {
     if (move.task) {
       return move.task(G, ctx, move); // Am I bad at javascript?
     }
+
+    ctx.events.endTurn();
   }
 }
 
@@ -71,11 +72,10 @@ function performMove(G, ctx, move) {
  */
 function wrapMove(move) {
   return function (G, ctx) {
-    G.move = null;
     if (move.performedBy) {
-      G.move = { ...move };
+      G.action = move.action; // Hold reference for after character choice
       return ctx.events.setActivePlayers({
-        currentPlayer: "choose",
+        value: { [ctx.playerID]: "choose" },
         moveLimit: 1,
       });
     } else {
@@ -94,45 +94,75 @@ function makeInfluencer(character) {
 
 /**
  * Current player is marked as blocked by another player
+ *
+ * Block triggers character selection which then has 
  */
-function block() {
-  ctx.events.setActivePlayers({ currentPlayer: "counter", moveLimit: 1 });
+function block(G, ctx) {
+  ctx.events.setActivePlayers({
+    value: { [ctx.playerID]: "choose" },
+    moveLimit: 1,
+    next: {
+      currentPlayer: 'blocked',
+      moveLimit: 1
+    },
+  });
 }
 
 /**
  * Player is marked as challenged by another
+ * TODO: Build association from UI to target ID
+ * Challenger, target, and the role in question
  */
-function challenge() {
-  ctx.events.setActivePlayers({ currentPlayer: "counter", moveLimit: 1 });
+function challenge(G, ctx, targetID) {
+  G.challenge = {
+    challenger: ctx.playerID,
+    target: targetID,
+    character: ctx.character
+  }
+  ctx.events.setActivePlayers({ value: { [targetID]: "challenged" }, moveLimit: 1 });
 }
 
 /**
  * Successful demonstration of influence so replace card
+ * 
+ * What is the order here? Replace card or challenger is punished?
  */
 function replace(G, ctx, index) {
+  ctx.events.setActivePlayers({ value: { [G.challenger]: "discard" }, moveLimit: 1 });
+
   // We need to hide the replacement cards from others
-  const player = G.players[ctx.currentPlayer];
+  const player = G.players[ctx.target];
 
   // I think this returns the card back
-  G.secrets.courtDeck.push(player.splice(index, 1).type);
+  G.secrets.courtDeck.push(player.influence.splice(index, 1).type);
 
   // shuffleDeck();
 
-  player.splice(index, 0, makeInfluencer(G.secrets.courtDeck.pop()));
+  player.influence.splice(index, 0, makeInfluencer(G.secrets.courtDeck.pop()));
+
+  G.challenge = null;
 }
 
 /**
- * Discards the influence from
+ * Discards the influence
  * @param {*} index
  */
 function reveal(index) {
   const player = G.players[ctx.currentPlayer];
   player.influence[index].revealed = true;
+  G.challenge = null;
 }
 
-function chooseCharacterForAction(type) {
-  G.move.type = type;
+/**
+ * Choose a character for the particular action
+ * @param {*} type 
+ */
+function chooseCharacterForAction(G, ctx, type) {
+  // TODO: This should be unspecific to current player
+  // G.players[ctx.playerID].
 }
+
+function skip(G, ctx) {}
 
 /**
  * Player is completely dead if they have no unturned characters
@@ -191,7 +221,7 @@ export const Coup = {
   moves: moveList, // Needs dynamic restricting due to currency 10+ rule
 
   turn: {
-    endIf: (G) => playerIsDead(G, ctx.currentPlayer),
+    endIf: (G, ctx) => playerIsDead(G, ctx.currentPlayer),
 
     stages: {
       choose: {
@@ -203,12 +233,24 @@ export const Coup = {
         moves: {
           block,
           challenge,
+          skip,
+        },
+      },
+      blocked: {
+        moves: {
+          challenge,
+          skip,
         },
       },
       challenged: {
         moves: {
           reveal,
           replace,
+        },
+      },
+      discard: {
+        moves: {
+          reveal,
         },
       },
     },
@@ -246,19 +288,15 @@ export const Coup = {
   },
 
   endIf: (G, ctx) => {
-    const gameover = Object.keys(G.players).reduce(
-      accumulator,
-      (value) => {
-        // Only check other players
-        // Once accumulator flips, don't bother setting again
-        if (value !== ctx.currentPlayer && accumulator) {
-          accumulator = playerIsDead(G, value);
-        }
+    const gameover = Object.keys(G.players).reduce((accumulator, value) => {
+      // Only check other players
+      // Once accumulator flips, don't bother setting again
+      if (value !== ctx.currentPlayer && accumulator) {
+        accumulator = playerIsDead(G, value);
+      }
 
-        return accumulator;
-      },
-      true
-    );
+      return accumulator;
+    }, true);
 
     if (gameover) {
       return { winner: ctx.currentPlayer };

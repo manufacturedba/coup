@@ -1,7 +1,6 @@
 import { Client } from "boardgame.io/client";
 import { SocketIO } from "boardgame.io/multiplayer";
 import { Coup } from "./game";
-import { moves } from "./moves";
 
 const PLAYER_ID_QUERY_PARAMETER = "playerID";
 const TIME_TO_DECIDE = 1000 * 15;
@@ -72,30 +71,32 @@ class CoupClient {
    *
    * @param {Number} currentPlayerID
    */
-  updateActionBar(player, currentPlayerID) {
+  updateActionBar(currentPlayerID, activePlayers) {
     const actionBar = document.getElementById("action_bar");
+    actionBar.innerHTML = '';
 
-    let actions = "";
-    moves.forEach((move) => {
+    const stage = activePlayers && activePlayers[this.playerID];
+    let moves;
+    if (stage) {
+      moves = this.client.game.turn.stages[stage].moves;
+    } else if (this.playerID === currentPlayerID) {
+      moves = this.client.game.moves;
+    }
+
+    Object.keys(moves).forEach((move) => {
       const moveElement = document.createElement("button");
-      moveElement.textContent = move.name;
-      moveElement.dataset.action = move.action;
+      moveElement.textContent = move;
       moveElement.classList.add("move");
-      moveElement.disabled =
-        this.playerID !== currentPlayerID || move.cost > player.coins;
-      actions += moveElement.outerHTML;
-    });
-    actionBar.innerHTML = actions;
-    actionBar.querySelectorAll(".move").forEach((button) => {
-      button.onclick = (event) => {
-        const actionName = event.target.dataset.action;
-        const action = this.client.moves[actionName];
+      //moveElement.disabled = move.cost > player.coins; How can I get this back?
+      moveElement.onclick = () => {
+        const action = this.client.moves[move];
 
         if (!action) {
           throw new Error("Missing action is not a valid circumstance");
         }
         action();
       };
+      actionBar.appendChild(moveElement);
     });
   }
 
@@ -170,7 +171,8 @@ class CoupClient {
     }
 
     this.updateCoins(player);
-    this.updateActionBar(player, currentPlayerID);
+    // Need to base action bar on available actions for player in stage
+    this.updateActionBar(currentPlayerID, activePlayers);
     this.updateCurrentPlayer(currentPlayerID);
     this.updateTreasury(state.G.treasury);
     this.updateTimer();
