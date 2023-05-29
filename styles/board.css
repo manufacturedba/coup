@@ -1,5 +1,5 @@
 .board {
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: rgb(0 0 0 / 10%);
 }
 
 .board__hand {

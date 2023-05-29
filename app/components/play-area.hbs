@@ -1,0 +1,34 @@
+<div>
+  {{#if this.currentTurn}}
+    <div>
+      It is your turn
+    </div>
+  {{else}}
+    <div>
+      It is player
+      {{this.currentPlayer}}
+      's turn
+    </div>
+  {{/if}}
+  <p>
+    You have
+    {{this.playerState.coins}}
+    coins
+  </p>
+  {{#if this.stalled}}
+    <p>
+      Waiting for others
+    </p>
+  {{else if this.active}}
+    {{#each this.moveList as |moveName|}}
+      <button type="button" {{on "click" (fn this.triggerMove moveName)}}>
+        {{moveName}}
+      </button>
+    {{/each}}
+  {{/if}}
+  {{#each this.playerState.influence as |influence|}}
+    <div>
+      {{influence}}
+    </div>
+  {{/each}}
+</div>
