@@ -1,87 +1,57 @@
-import {
-  INCOME,
-  FOREIGN_AID,
-  TAX,
-  STEAL,
-  ASSASSINATE,
-  EXCHANGE,
-} from "./actions";
+import { ACTION, ACTION_TO_ROYAL_MAP } from "./constants";
 
-import { DUKE, CAPTAIN, ASSASSIN, CONTESSA, AMBASSADOR } from "./characters";
+export function Income({ G, ctx, playerID, events }) {
+  G.treasury.withdraw(1);
+  G.players[playerID].coins += 1;
+}
 
-const income = {
-  name: "Income",
-  action: INCOME,
-  cost: 0,
-  gain: 1,
-  performedBy: null,
-  blockedBy: [],
-  canChallenge: false,
-  task: null,
-};
+export function ForeignAid({ G, ctx, playerID, events }) {
+  G.players[playerID].chosenAction = ACTION.FOREIGN_AID;
 
-const foreignAid = {
-  name: "Foreign aid",
-  action: FOREIGN_AID,
-  cost: 0,
-  gain: 2,
-  performedBy: null,
-  blockedBy: [DUKE],
-  canChallenge: false,
-};
+  events.setActivePlayers({
+    others: "challenge",
+    maxMoves: 1,
+    next: {
+      others: "counteraction",
+      maxMoves: 1,
+    }
+  });
+}
 
-const tax = {
-  name: "Tax",
-  action: TAX,
-  cost: 0,
-  gain: 3,
-  performedBy: [DUKE],
-  blockedBy: null,
-  canChallenge: true,
-};
+export function Coup({ G, ctx, playerID, events }) {
+  setStage("coup");
+}
 
-const steal = {
-  name: "Steal",
-  action: STEAL,
-  cost: 0,
-  gain: 0,
-  performedBy: [CAPTAIN],
-  blockedBy: [CAPTAIN, AMBASSADOR],
-  canChallenge: true,
-  task: function (G, ctx, move) {
-    // Take from the targeted character
-  },
-};
+export function Tax({ G, ctx, playerID, events }) {
+  G.players[playerID].availableRoyals = ACTION_TO_ROYAL_MAP[ACTION.TAX];
+  setStage("select_royal");
+}
 
-const assassinate = {
-  name: "Assassinate",
-  action: ASSASSINATE,
-  cost: 3,
-  gain: 0,
-  performedBy: [ASSASSIN],
-  blockedBy: [CONTESSA],
-  canChallenge: true,
-};
+export function Assassinate() {
+  G.players[playerID].availableRoyals = ACTION_TO_ROYAL_MAP[ACTION.ASSASSINATE];
+  setStage("select_royal");
+}
 
-export const moves = [income, foreignAid, steal, assassinate];
+export function Exchange() {
+  G.players[playerID].availableRoyals = ACTION_TO_ROYAL_MAP[ACTION.EXCHANGE];
+  setStage("select_royal");
+}
 
-/*
-{
-  name: String,   // Human readable
+export function Steal() {
+  G.players[playerID].availableRoyals = ACTION_TO_ROYAL_MAP[ACTION.STEAL];
+  setStage("select_royal");
+}
 
-  action: Action,
+export function SelectRoyal({ G, ctx, playerID, events }, royal) {
+  G.players[playerID].chosenRoyal = royal;
+  G.players[playerID].availableRoyals = null;
+  setStage("challenge");
+}
 
-  cost: Number, // Pay in to treasury (cannot be regained on block/challenge)
+export function ChooseCoupTarget({ G, ctx, playerID, events }, player) {
+  // G.players[player]
+}
 
-  gain: Number, // Pay out from treasury (stopped by block/challenge)
-
-  performedBy: optional array[Characters], // Who can perform | null is all
-
-  blockedBy: array[Characters], // Who can block | empty is no one
-
-  canChallenge: Boolean
-
-  task: optional Function // If null, mechanics of function can be handled by config
+export function LoseInfluence({G, ctx, playerID, events }) {
 
 }
-*/
