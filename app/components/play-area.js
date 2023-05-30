@@ -33,6 +33,10 @@ export default class PlayAreaComponent extends Component {
     return this.coup.G.players[this.args.playerID];
   }
 
+  get gameState() {
+    return this.coup.G;
+  }
+
   get game() {
     return this.coup.game;
   }
@@ -52,11 +56,45 @@ export default class PlayAreaComponent extends Component {
   }
 
   get stalled() {
-    return this.context?.activePlayers?.[this.playerID] === 'pending_challenge';
+    return !this.active;
+  }
+
+  get standingAction() {
+    return (
+      this.playerID !== this.currentPlayer &&
+      this.gameState.action?.[this.currentPlayer]
+    );
+  }
+
+  get opposingAction() {
+    const opposer = Object.keys(this.gameState.action).findIndex(
+      (playerID) => playerID !== this.playerID
+    );
+
+    if (this.currentTurn && opposer !== -1) {
+      return {
+        playerID: opposer,
+        type: this.gameState.action[opposer].type,
+        royal: this.gameState.action[opposer].royal,
+      };
+    }
+
+    return null;
+  }
+
+  get challenged() {
+    return this.context.activePlayers?.[this.playerID] === 'challenged';
   }
 
   @action
   triggerMove(moveName) {
-    this.coup.triggerMove(moveName);
+    this.coup.triggerMove(moveName, {});
+  }
+
+  @action
+  triggerMoveWithPosition(moveName, influencePosition) {
+    this.coup.triggerMove(moveName, {
+      influencePosition,
+    });
   }
 }

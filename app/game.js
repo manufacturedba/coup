@@ -10,11 +10,14 @@ import {
   Exchange,
   Steal,
   SelectRoyal,
-  Challenge,
+  ChallengeInfluence,
   Allow,
-  Counter,
+  AllowCounter,
+  Block,
   Reveal,
   ChooseCoupTarget,
+  ChallengeCounter,
+  LoseInfluence,
 } from './moves';
 import { ACTION_TO_RESOLUTION_MAP } from './resolutions';
 
@@ -27,6 +30,12 @@ export const CoupGame = {
       secret: {
         deck,
       },
+
+      conflict: {},
+
+      action: {},
+
+      revealed: {},
 
       players: Array(ctx.numPlayers)
         .fill('')
@@ -69,38 +78,42 @@ export const CoupGame = {
   },
 
   turn: {
-    maxMoves: 2,
+    onEnd: ({ G, ctx, events }) => {
+      const counterResolution = Object.keys(G.action).find(playerID => playerID !== ctx.currentPlayer);
+      const currentPlayerResolution = G.action[ctx.currentPlayer];
+      const resolution = counterResolution ? counterResolution({ G, playerID: currentValue }) : currentPlayerResolution({ G, playerID: currentValue });
 
-    onMove: ({ G, ctx, events, playerID }) => {
-      // Only other players can flush resolutions
-      if (ctx.activePlayers || playerID === ctx.currentPlayer) {
-        return;
+      return {
+        ...G,
+        ...resolution,
+        openChallenge: null,
+        conflict: {},
+        action: {},
       }
-
-      const { chosenAction } = G.players[ctx.currentPlayer];
-      const resolution = ACTION_TO_RESOLUTION_MAP[chosenAction];
-      events.endTurn();
-      return resolution({ G, playerID: ctx.currentPlayer });
     },
-
     stages: {
-      pending_challenge: {
-        moves: {},
-      },
-      pending_counteraction: {
-        moves: {},
-      },
       select_royal: {
         moves: { SelectRoyal },
       },
-      challenge: {
-        moves: { Challenge, Allow },
+      challenge_counter: {
+        moves: { ChallengeCounter, AllowCounter },
+      },
+      challenge_influence: {
+        moves: { ChallengeInfluence, Allow },
       },
       counteraction: {
-        moves: { Counter, Allow },
+        moves: { Block, Allow },
       },
-      reveal: {
-        moves: { Reveal },
+      challenged: {
+        moves: {
+          Reveal: {
+            move: Reveal,
+            client: false,
+          },
+        },
+      },
+      lose_influence: {
+        moves: { LoseInfluence },
       },
       coup: {
         moves: { ChooseCoupTarget },

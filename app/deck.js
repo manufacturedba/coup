@@ -26,3 +26,7 @@ export function shuffle(deck) {
 export function draw(deck) {
   return deck.pop();
 }
+
+export function insert(deck, card) {
+  return deck.push(card);
+}

@@ -1,8 +1,8 @@
 <div>
   {{#if this.currentTurn}}
-    <div>
+    <h2>
       It is your turn
-    </div>
+    </h2>
   {{else}}
     <div>
       It is player
@@ -10,25 +10,80 @@
       's turn
     </div>
   {{/if}}
+  {{#if this.standingAction}}
+    {{#if this.standingAction.royal}}
+      <h3>
+        Player
+        {{this.currentPlayer}}
+        is attempting to
+        {{this.standingAction.type}}
+        as
+        {{this.standingAction.royal}}
+      </h3>
+    {{else}}
+      <h3>
+        Player
+        {{this.currentPlayer}}
+        is attempting to
+        {{this.standingAction.type}}
+      </h3>
+    {{/if}}
+  {{/if}}
+  {{#if this.opposingAction}}
+    {{#if this.opposingAction.royal}}
+      <h3>
+        Player
+        {{this.opposingAction.playerID}}
+        is attempting to
+        {{this.opposingAction.type}}
+        as
+        {{this.opposingAction.royal}}
+      </h3>
+    {{else}}
+      <h3>
+        Player
+        {{this.currentPlayer}}
+        is attempting to
+        {{this.opposingAction.type}}
+      </h3>
+    {{/if}}
+  {{/if}}
+  {{#if this.stalled}}
+    <h2>
+      Waiting for others
+    </h2>
+  {{else if this.active}}
+    {{#if this.challenged}}
+      {{#each this.playerState.influence as |influence index|}}
+        {{#each this.moveList as |moveName|}}
+          <button
+            type="button"
+            {{on "click" (fn this.triggerMoveWithPosition moveName index)}}
+          >
+            {{moveName}}
+            {{influence}}
+          </button>
+        {{/each}}
+      {{/each}}
+    {{else}}
+      {{#each this.moveList as |moveName|}}
+        <button type="button" {{on "click" (fn this.triggerMove moveName)}}>
+          {{moveName}}
+        </button>
+      {{/each}}
+    {{/if}}
+  {{/if}}
+  <hr />
+  {{#each this.playerState.influence as |influence|}}
+    <p>
+      You have the
+      {{influence}}
+      in your possession
+    </p>
+  {{/each}}
   <p>
     You have
     {{this.playerState.coins}}
     coins
   </p>
-  {{#if this.stalled}}
-    <p>
-      Waiting for others
-    </p>
-  {{else if this.active}}
-    {{#each this.moveList as |moveName|}}
-      <button type="button" {{on "click" (fn this.triggerMove moveName)}}>
-        {{moveName}}
-      </button>
-    {{/each}}
-  {{/if}}
-  {{#each this.playerState.influence as |influence|}}
-    <div>
-      {{influence}}
-    </div>
-  {{/each}}
 </div>

@@ -43,10 +43,10 @@ export default class CoupService extends Service {
     this.client.start();
   }
 
-  triggerMove(moveName) {
+  triggerMove(moveName, { influencePosition }) {
     const { G, ctx } = this.client.getState();
 
-    this.client.moves[moveName]();
+    this.client.moves[moveName]({ influencePosition });
 
     run(() => {
       const { G, ctx } = this.client.getState();
